@@ -9,10 +9,10 @@ sensor_kit_base_link:
   lidar_link:
     x: 0.405
     y: 0.0
-    z: 1.3
+    z: 1.5
     roll: 0.0
     pitch: 0.0
-    yaw: 0.0
+    yaw: 3.14159265359
   imu_link:
     x: 0.0
     y: 0.0
