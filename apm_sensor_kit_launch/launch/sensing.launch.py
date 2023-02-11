@@ -22,7 +22,7 @@ from launch_ros.substitutions import FindPackageShare
 
 def launch_setup(context, *args, **kwargs):
     urdf_pkg_prefix = FindPackageShare(LaunchConfiguration('urdf_pkg'))
-    urdf_config = PathJoinSubstitution([urdf_pkg_prefix, 'urdf/sensors.xacro'])
+    # urdf_config = PathJoinSubstitution([urdf_pkg_prefix, 'urdf/sensors.xacro'])
 
     # Lidar
     lidar_launch = IncludeLaunchDescription(
@@ -64,6 +64,20 @@ def launch_setup(context, *args, **kwargs):
         }.items()
     )
     
+    # Remote controller
+    remote_controller_launch = IncludeLaunchDescription(
+        FrontendLaunchDescriptionSource(
+            launch_file_path=PathJoinSubstitution([
+                FindPackageShare('joy_controller'), 'launch', 'joy_controller.launch.xml'
+            ]),
+        ),
+        launch_arguments={
+            'config_file': PathJoinSubstitution([
+                FindPackageShare('apm_sensor_kit_launch'), 'param', 'joy/joy_controller.param.yaml'
+            ])
+        }.items()
+    )
+
     # # do not use, just for tf validation
     # state_publisher_node = Node(
     #     package='robot_state_publisher',
@@ -80,8 +94,9 @@ def launch_setup(context, *args, **kwargs):
     return [
         lidar_launch,
         imu_launch,
-        # gnss_launch,
-        # vehicle_velocity_converter_launch
+        gnss_launch,
+        vehicle_velocity_converter_launch,
+        remote_controller_launch,
         # state_publisher_node
     ]
 
