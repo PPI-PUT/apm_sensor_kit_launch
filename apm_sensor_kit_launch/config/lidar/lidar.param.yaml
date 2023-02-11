@@ -1,7 +1,7 @@
 /**:
   ros__parameters:
     lidar_ip: 192.168.10.158
-    computer_ip: 192.168.10.159
+    computer_ip: 192.168.10.163
     lidar_mode: "512x10"
     imu_port: 7503
     lidar_port: 7502
