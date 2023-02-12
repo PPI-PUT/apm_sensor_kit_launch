@@ -1,0 +1,20 @@
+/**:
+  ros__parameters:
+    "host": "91.198.76.2"
+    "port": "8086"
+    "mountpoint": "POZN_RTCM_3_2"
+    "ntrip_version": "None"
+    "authenticate": True
+    "username": "user"
+    "password": "password"
+    "ssl": False
+    "cert": "None"
+    "key": "None"
+    "ca_cert": "None"
+    "rtcm_frame_id": "odom"
+    "nmea_max_length": 82
+    "nmea_min_length": 3
+    "rtcm_message_package": "mavros_msgs"
+    "reconnect_attempt_max": 10
+    "reconnect_attempt_wait_seconds": 5
+    "rtcm_timeout_seconds": 4

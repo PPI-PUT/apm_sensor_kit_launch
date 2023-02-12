@@ -15,35 +15,49 @@
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, OpaqueFunction
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
-from launch_ros.actions import ComposableNodeContainer
+from launch_ros.actions import ComposableNodeContainer, Node
 from launch_ros.descriptions import ComposableNode
 from launch_ros.substitutions import FindPackageShare
 
 
 def launch_setup(context, *args, **kwargs):
     pkg_prefix = FindPackageShare(LaunchConfiguration('param_file_pkg'))
-    config = PathJoinSubstitution([pkg_prefix, LaunchConfiguration('param_file')])
+    gnss_config = PathJoinSubstitution([pkg_prefix, LaunchConfiguration('gnss_param_file')])
+    ntrip_config = PathJoinSubstitution([pkg_prefix, LaunchConfiguration('ntrip_param_file')])
 
     container = ComposableNodeContainer(
-            name='ublox_gps_container',
-            namespace='',
-            package='rclcpp_components',
-            executable='component_container',
-            composable_node_descriptions=[
+        name='ublox_gps_container',
+        namespace='',
+        package='rclcpp_components',
+        executable='component_container',
+        composable_node_descriptions=[
                 ComposableNode(
                     package='ublox_gps',
                     namespace='ublox',
                     plugin='ublox_node::UbloxNode',
                     name='ublox_gps_node',
                     parameters=[
-                        config
+                        gnss_config
                     ]),
-            ],
-            output='both',
+        ],
+        output='both',
     )
-    
+
+    ntrip_node = Node(
+        name='ntrip_client_node',
+        namespace='',
+        package='ntrip_client',
+        executable='ntrip_ros.py',
+        parameters=[
+            {
+                ntrip_config
+            }
+        ],
+    )
+
     return [
-        container
+        container,
+        ntrip_node
     ]
 
 
@@ -60,8 +74,16 @@ def generate_launch_description():
 
     declared_arguments.append(
         DeclareLaunchArgument(
-            'param_file',
+            'gnss_param_file',
             default_value='config/gnss/gnss.param.yaml',
+            description="Param file (relative path)."
+        )
+    )
+
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            'ntrip_param_file',
+            default_value='config/gnss/ntrip.param.yaml',
             description="Param file (relative path)."
         )
     )
