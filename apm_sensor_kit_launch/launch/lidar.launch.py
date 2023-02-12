@@ -85,7 +85,7 @@ def launch_setup(context, *args, **kwargs):
         extra_arguments=[{"use_intra_process_comms": LaunchConfiguration("use_intra_process")}],
     )
 
-    mirror_info = get_config('vehicle_mirror_param_file')
+    mirror_info = get_config(context, 'vehicle_mirror_param_file')
     cropbox_parameters["min_x"] = mirror_info["min_longitudinal_offset"]
     cropbox_parameters["max_x"] = mirror_info["max_longitudinal_offset"]
     cropbox_parameters["min_y"] = mirror_info["min_lateral_offset"]
