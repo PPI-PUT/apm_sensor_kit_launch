@@ -30,11 +30,14 @@ from launch_ros.substitutions import FindPackageShare
 
 def get_vehicle_info(vehicle_params):
     crop_params = {}
-    crop_params["vehicle_length"] = vehicle_params["front_overhang"] + vehicle_params["wheel_base"] + vehicle_params["rear_overhang"]
-    crop_params["vehicle_width"] = vehicle_params["wheel_tread"] + vehicle_params["left_overhang"] + vehicle_params["right_overhang"]
+    crop_params["vehicle_length"] = vehicle_params["front_overhang"] + \
+        vehicle_params["wheel_base"] + vehicle_params["rear_overhang"]
+    crop_params["vehicle_width"] = vehicle_params["wheel_tread"] + \
+        vehicle_params["left_overhang"] + vehicle_params["right_overhang"]
     crop_params["min_longitudinal_offset"] = -vehicle_params["rear_overhang"]
     crop_params["max_longitudinal_offset"] = vehicle_params["front_overhang"] + vehicle_params["wheel_base"]
-    crop_params["min_lateral_offset"] = -(vehicle_params["wheel_tread"] / 2.0 + vehicle_params["right_overhang"])
+    crop_params["min_lateral_offset"] = -(vehicle_params["wheel_tread"] / 2.0 +
+                                          vehicle_params["right_overhang"])
     crop_params["max_lateral_offset"] = vehicle_params["wheel_tread"] / 2.0 + vehicle_params["left_overhang"]
     crop_params["min_height_offset"] = 0.3
     crop_params["max_height_offset"] = vehicle_params["vehicle_height"]
@@ -68,20 +71,64 @@ def launch_setup(context, *args, **kwargs):
     cropbox_parameters["min_z"] = vehicle_info["min_height_offset"]
     cropbox_parameters["max_z"] = vehicle_info["max_height_offset"]
 
-
-    crop_box_component = ComposableNode(
-            package="pointcloud_preprocessor",
-            plugin="pointcloud_preprocessor::CropBoxFilterComponent",
-            name="crop_box_filter_self",
-            namespace="lidar",
-            remappings=[
+    crop_box_vehicle_component = ComposableNode(
+        package="pointcloud_preprocessor",
+        plugin="pointcloud_preprocessor::CropBoxFilterComponent",
+        name="crop_box_filter_self",
+        namespace="lidar",
+        remappings=[
                 ("input", "points"),
-                ("output", "concatenated/pointcloud")
-            ],
-            parameters=[cropbox_parameters],
-            extra_arguments=[{"use_intra_process_comms": LaunchConfiguration("use_intra_process")}],
-        )
-    
+                # ("output", "concatenated/pointcloud")
+                ("output", "self_cropped/pointcloud_ex")
+        ],
+        parameters=[cropbox_parameters],
+        extra_arguments=[{"use_intra_process_comms": LaunchConfiguration("use_intra_process")}],
+    )
+
+    mirror_info = get_config('vehicle_mirror_param_file')
+    cropbox_parameters["min_x"] = mirror_info["min_longitudinal_offset"]
+    cropbox_parameters["max_x"] = mirror_info["max_longitudinal_offset"]
+    cropbox_parameters["min_y"] = mirror_info["min_lateral_offset"]
+    cropbox_parameters["max_y"] = mirror_info["max_lateral_offset"]
+    cropbox_parameters["min_z"] = mirror_info["min_height_offset"]
+    cropbox_parameters["max_z"] = mirror_info["max_height_offset"]
+
+    crop_box_mirror_component = ComposableNode(
+        package="pointcloud_preprocessor",
+        plugin="pointcloud_preprocessor::CropBoxFilterComponent",
+        name="crop_box_filter_mirror",
+        remappings=[
+                ("input", "self_cropped/pointcloud_ex"),
+                ("output", "mirror_cropped/pointcloud_ex"),
+        ],
+        parameters=[cropbox_parameters],
+        extra_arguments=[{"use_intra_process_comms": LaunchConfiguration("use_intra_process")}],
+    )
+
+    distortion_corrector_component = ComposableNode(
+        package="pointcloud_preprocessor",
+        plugin="pointcloud_preprocessor::DistortionCorrectorComponent",
+        name="distortion_corrector_node",
+        remappings=[
+            ("~/input/twist", "/sensing/vehicle_velocity_converter/twist_with_covariance"),
+            ("~/input/imu", "/sensing/imu/imu_data"),
+            ("~/input/pointcloud", "mirror_cropped/pointcloud_ex"),
+            ("~/output/pointcloud", "rectified/pointcloud_ex"),
+        ],
+        extra_arguments=[{"use_intra_process_comms": LaunchConfiguration("use_intra_process")}],
+    )
+
+    ring_outlier_filter_component = ComposableNode(
+        package="pointcloud_preprocessor",
+        plugin="pointcloud_preprocessor::RingOutlierFilterComponent",
+        name="ring_outlier_filter",
+        remappings=[
+                ("input", "rectified/pointcloud_ex"),
+                ("output", "concatenated/pointcloud"),
+        ],
+        extra_arguments=[{"use_intra_process_comms": LaunchConfiguration("use_intra_process")}],
+    )
+
     driver_component = ComposableNode(
         package="ros2_ouster",
         plugin="ros2_ouster::Driver",
@@ -90,7 +137,6 @@ def launch_setup(context, *args, **kwargs):
         parameters=[lidar_params],
         extra_arguments=[{"use_intra_process_comms": LaunchConfiguration("use_intra_process")}],
     )
-
 
     container = ComposableNodeContainer(
         name=LaunchConfiguration("pointcloud_container_name"),
@@ -101,7 +147,6 @@ def launch_setup(context, *args, **kwargs):
         condition=UnlessCondition(LaunchConfiguration("use_pointcloud_container")),
         output="screen",
     )
-    
 
     target_container = (
         container
@@ -110,7 +155,12 @@ def launch_setup(context, *args, **kwargs):
     )
 
     loader = LoadComposableNodes(
-        composable_node_descriptions=[driver_component, crop_box_component],
+        composable_node_descriptions=[driver_component,
+                                      crop_box_vehicle_component,
+                                      crop_box_mirror_component,
+                                      distortion_corrector_component,
+                                      ring_outlier_filter_component
+                                      ],
         target_container=target_container,
         condition=IfCondition(LaunchConfiguration("launch_driver")),
     )
@@ -134,16 +184,19 @@ def generate_launch_description():
         launch_arguments.append(DeclareLaunchArgument(name, default_value=default_value))
 
     add_launch_arg("launch_driver", "True")
-    add_launch_arg("vehicle_mirror_param_file", default_value=PathJoinSubstitution([vehicle_dir, 'config/mirror.param.yaml']))
+    add_launch_arg("vehicle_mirror_param_file", default_value=PathJoinSubstitution(
+        [vehicle_dir, 'config/mirror.param.yaml']))
     add_launch_arg("use_pointcloud_container", "False")
     add_launch_arg("pointcloud_container_name", "pointcloud_container")
-    
+
     add_launch_arg("base_frame", "base_link")
     add_launch_arg("use_multithread", "False")
     add_launch_arg("use_intra_process", "False")
     add_launch_arg("vehicle_id", "apm_vehicle")
-    add_launch_arg("lidar_params", default_value=PathJoinSubstitution([sensor_kit_dir, 'config/lidar/lidar.param.yaml']))
-    add_launch_arg("vehicle_params", default_value=PathJoinSubstitution([vehicle_dir, 'config/vehicle_info.param.yaml']))
+    add_launch_arg("lidar_params", default_value=PathJoinSubstitution(
+        [sensor_kit_dir, 'config/lidar/lidar.param.yaml']))
+    add_launch_arg("vehicle_params", default_value=PathJoinSubstitution(
+        [vehicle_dir, 'config/vehicle_info.param.yaml']))
     add_launch_arg("input_frame", "lidar_laser_link")
     add_launch_arg("output_frame", LaunchConfiguration("base_frame"))
 
