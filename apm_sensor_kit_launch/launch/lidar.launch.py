@@ -97,6 +97,7 @@ def launch_setup(context, *args, **kwargs):
         package="pointcloud_preprocessor",
         plugin="pointcloud_preprocessor::CropBoxFilterComponent",
         name="crop_box_filter_mirror",
+        namespace="lidar",
         remappings=[
                 ("input", "self_cropped/pointcloud_ex"),
                 ("output", "mirror_cropped/pointcloud_ex"),
@@ -109,6 +110,7 @@ def launch_setup(context, *args, **kwargs):
         package="pointcloud_preprocessor",
         plugin="pointcloud_preprocessor::DistortionCorrectorComponent",
         name="distortion_corrector_node",
+        namespace="lidar",
         remappings=[
             ("~/input/twist", "/sensing/vehicle_velocity_converter/twist_with_covariance"),
             ("~/input/imu", "/sensing/imu/imu_data"),
@@ -122,6 +124,7 @@ def launch_setup(context, *args, **kwargs):
         package="pointcloud_preprocessor",
         plugin="pointcloud_preprocessor::RingOutlierFilterComponent",
         name="ring_outlier_filter",
+        namespace="lidar",
         remappings=[
                 ("input", "rectified/pointcloud_ex"),
                 ("output", "concatenated/pointcloud"),
