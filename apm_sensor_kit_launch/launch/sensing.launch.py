@@ -74,7 +74,8 @@ def launch_setup(context, *args, **kwargs):
         launch_arguments={
             'config_file': PathJoinSubstitution([
                 FindPackageShare('apm_sensor_kit_launch'), 'config', 'joy/joy_controller.param.yaml'
-            ])
+            ]),
+            'input_joy': "/sensing/joy"
         }.items()
     )
 
